@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英语语法逻辑挑战 (最终版)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* 字体栈：优先思源黑体 */
+            --main-font: 'Source Han Sans CN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+            
+            --primary: #2c3e50;
+            --accent: #2980b9;
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --green: #27ae60;
+            --red: #c0392b;
+            --text: #2d3436;
+            --hint-text: #95a5a6;
+        }
+
+        body {
+            font-family: var(--main-font);
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 850px;
+            padding: 50px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        h1 { margin: 0 0 10px 0; font-weight: 700; letter-spacing: 1px; color: var(--primary); }
+        p.subtitle { color: var(--hint-text); margin-bottom: 30px; }
+
+        /* --- 屏幕切换控制 --- */
+        .screen { display: none; animation: fadeIn 0.3s ease; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- 按钮样式 --- */
+        .big-btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            font-size: 1.1rem;
+            font-family: var(--main-font);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .big-btn:hover { background-color: #3498db; transform: translateY(-2px); }
+
+        /* --- 句子显示区 (核心修改：像自然文本一样流动) --- */
+        .sentence-box {
+            font-size: 1.5rem; /* 字号适中，清晰 */
+            line-height: 2.4;  /* 足够的行高容纳下方的提示 */
+            text-align: left;
+            margin: 20px 0 30px 0;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            
+            /* 使用 Flex 布局，但设置紧凑的 gap */
+            display: flex;
+            flex-wrap: wrap; 
+            align-items: baseline; /* 基线对齐，保证文字在一条直线上 */
+            gap: 8px 5px; /* 行间距8px, 词间距5px (更紧凑) */
+        }
+
+        /* 单词单元：包含单词文本和下方的提示 */
+        .word-unit {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            height: auto;
+        }
+
+        /* 单词本体 */
+        .word-text {
+            z-index: 2;
+        }
+
+        /* 下方的词性提示 */
+        .pos-hint {
+            font-size: 0.75rem;
+            color: var(--hint-text);
+            position: absolute;
+            top: 100%; /* 位于单词正下方 */
+            margin-top: -2px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s;
+            white-space: nowrap; /* 防止提示换行 */
+        }
+        
+        .show-hints .pos-hint { opacity: 1; }
+
+        /* 挖空处样式 */
+        .blank {
+            display: inline-block;
+            min-width: 80px;
+            border-bottom: 2px solid var(--text); /* 只有下划线，更像填空 */
+            text-align: center;
+            margin: 0 2px;
+            height: 1.2em; /* 占位 */
+            color: transparent;
+            transition: all 0.3s;
+        }
+
+        /* 揭晓答案后 */
+        .revealed {
+            color: var(--accent);
+            font-weight: 700;
+            border-bottom-color: var(--accent);
+            padding: 0 5px;
+        }
+
+        /* 提示开关 */
+        .hint-toggle {
+            color: var(--hint-text);
+            cursor: pointer;
+            font-size: 0.95rem;
+            margin-bottom: 25px;
+            display: inline-block;
+            border-bottom: 1px dashed var(--hint-text);
+        }
+        .hint-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+        /* 选项网格 */
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 一行4个，更紧凑 */
+            gap: 15px;
+        }
+        @media (max-width: 600px) {
+            .options-grid { grid-template-columns: 1fr 1fr; } /* 手机端两列 */
+        }
+
+        .opt-btn {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: var(--main-font);
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+
+        .opt-btn:hover { background: #f8f9fa; border-color: var(--accent); transform: translateY(-1px); }
+        .opt-btn:active { transform: translateY(0); }
+
+        .opt-btn.correct { background: var(--green); border-color: var(--green); color: white; }
+        .opt-btn.wrong { background: var(--red); border-color: var(--red); color: white; }
+
+        /* 状态栏 */
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            color: #7f8c8d;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .stats-bar b { color: var(--primary); }
+
+        .feedback { height: 25px; font-weight: bold; margin-top: 15px; font-size: 1rem; }
+        .disabled { pointer-events: none; opacity: 0.7; }
+        
+        .final-score { font-size: 3.5rem; font-weight: 700; color: var(--accent); display: block; margin: 20px 0; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div id="startScreen" class="screen active">
+        <h1>Grammar Logic Challenge</h1>
+        <p class="subtitle">20 Questions · 5 Points Each · Max 100</p>
+        <p style="margin: 40px 0; line-height: 1.6;">
+            分析句子结构，推断空格处的词性。<br>
+            Prepare your logic!
+        </p>
+        <button class="big-btn" onclick="game.start()">开始游戏 (Start)</button>
+    </div>
+
+    <div id="gameScreen" class="screen">
+        <div class="stats-bar">
+            <span>Question: <b id="qCount">1</b> / 20</span>
+            <span>Score: <b id="currentScore">0</b></span>
+        </div>
+
+        <div class="sentence-box" id="sentenceDisplay"></div>
+
+        <div class="hint-toggle" id="hintBtn" onclick="game.toggleHints()">💡 显示句子结构提示</div>
+
+        <div class="options-grid" id="optContainer">
+            <button class="opt-btn" onclick="game.check('n')">名词 (n.)</button>
+            <button class="opt-btn" onclick="game.check('v')">动词 (v.)</button>
+            <button class="opt-btn" onclick="game.check('adj')">形容词 (adj.)</button>
+            <button class="opt-btn" onclick="game.check('adv')">副词 (adv.)</button>
+        </div>
+
+        <div class="feedback" id="feedbackMsg"></div>
+    </div>
+
+    <div id="endScreen" class="screen">
+        <h1>Game Over</h1>
+        <p class="subtitle">最终得分</p>
+        <span class="final-score" id="finalScoreDisplay">0</span>
+        <p id="resultComment" style="margin-bottom: 30px;"></p>
+        <button class="big-btn" onclick="game.init()">再来一局 (Replay)</button>
+    </div>
+
+</div>
+
+<script>
+    // --- 扩充后的题库 (32题，保证20题不重复) ---
+    const sentenceLibrary = [
+        { s: "The quick brown fox jumps over the dog.", w: [ {t:"adj",v:"quick"}, {t:"adj",v:"brown"}, {t:"n",v:"fox"}, {t:"v",v:"jumps"}, {t:"n",v:"dog"} ] },
+        { s: "She carefully folded the paper.", w: [ {t:"adv",v:"carefully"}, {t:"v",v:"folded"}, {t:"n",v:"paper"} ] },
+        { s: "Innovation drives economic growth.", w: [ {t:"n",v:"Innovation"}, {t:"v",v:"drives"}, {t:"adj",v:"economic"}, {t:"n",v:"growth"} ] },
+        { s: "He spoke softly to the child.", w: [ {t:"v",v:"spoke"}, {t:"adv",v:"softly"}, {t:"n",v:"child"} ] },
+        { s: "The heavy rain caused floods.", w: [ {t:"adj",v:"heavy"}, {t:"n",v:"rain"}, {t:"v",v:"caused"}, {t:"n",v:"floods"} ] },
+        { s: "They happily accepted the offer.", w: [ {t:"adv",v:"happily"}, {t:"v",v:"accepted"}, {t:"n",v:"offer"} ] },
+        { s: "Ideally we should monitor progress.", w: [ {t:"adv",v:"Ideally"}, {t:"v",v:"monitor"}, {t:"n",v:"progress"} ] },
+        { s: "The sudden noise scared me.", w: [ {t:"adj",v:"sudden"}, {t:"n",v:"noise"}, {t:"v",v:"scared"} ] },
+        { s: "Efficient systems save time.", w: [ {t:"adj",v:"Efficient"}, {t:"n",v:"systems"}, {t:"v",v:"save"}, {t:"n",v:"time"} ] },
+        { s: "She runs very fast.", w: [ {t:"v",v:"runs"}, {t:"adv",v:"fast"} ] },
+        { s: "The global economy is recovering.", w: [ {t:"adj",v:"global"}, {t:"n",v:"economy"}, {t:"v",v:"recovering"} ] },
+        { s: "Scientists analyze the complex data.", w: [ {t:"n",v:"Scientists"}, {t:"v",v:"analyze"}, {t:"adj",v:"complex"}, {t:"n",v:"data"} ] },
+        { s: "He eventually found the answer.", w: [ {t:"adv",v:"eventually"}, {t:"v",v:"found"}, {t:"n",v:"answer"} ] },
+        { s: "The wooden table looks old.", w: [ {t:"adj",v:"wooden"}, {t:"n",v:"table"}, {t:"v",v:"looks"}, {t:"adj",v:"old"} ] },
+        { s: "Please read the instructions carefully.", w: [ {t:"v",v:"read"}, {t:"n",v:"instructions"}, {t:"adv",v:"carefully"} ] },
+        { s: "A happy life requires balance.", w: [ {t:"adj",v:"happy"}, {t:"n",v:"life"}, {t:"v",v:"requires"}, {t:"n",v:"balance"} ] },
+        { s: "The cat sleeps peacefully.", w: [ {t:"n",v:"cat"}, {t:"v",v:"sleeps"}, {t:"adv",v:"peacefully"} ] },
+        { s: "Dark clouds filled the sky.", w: [ {t:"adj",v:"Dark"}, {t:"n",v:"clouds"}, {t:"v",v:"filled"}, {t:"n",v:"sky"} ] },
+        { s: "We successfully completed the project.", w: [ {t:"adv",v:"successfully"}, {t:"v",v:"completed"}, {t:"n",v:"project"} ] },
+        { s: "Honesty is the best policy.", w: [ {t:"n",v:"Honesty"}, {t:"adj",v:"best"}, {t:"n",v:"policy"} ] },
+        { s: "The bright sun warms the earth.", w: [ {t:"adj",v:"bright"}, {t:"n",v:"sun"}, {t:"v",v:"warms"}, {t:"n",v:"earth"} ] },
+        { s: "They walked slowly through the park.", w: [ {t:"v",v:"walked"}, {t:"adv",v:"slowly"}, {t:"n",v:"park"} ] },
+        { s: "Cultural diversity enriches society.", w: [ {t:"adj",v:"Cultural"}, {t:"n",v:"diversity"}, {t:"v",v:"enriches"}, {t:"n",v:"society"} ] },
+        { s: "She creates beautiful art.", w: [ {t:"v",v:"creates"}, {t:"adj",v:"beautiful"}, {t:"n",v:"art"} ] },
+        { s: "Suddenly the lights went out.", w: [ {t:"adv",v:"Suddenly"}, {t:"n",v:"lights"}, {t:"v",v:"went"} ] },
+        { s: "Hard work brings success.", w: [ {t:"adj",v:"Hard"}, {t:"n",v:"work"}, {t:"v",v:"brings"}, {t:"n",v:"success"} ] },
+        { s: "The train arrived late.", w: [ {t:"n",v:"train"}, {t:"v",v:"arrived"}, {t:"adv",v:"late"} ] },
+        { s: "He is a famous writer.", w: [ {t:"v",v:"is"}, {t:"adj",v:"famous"}, {t:"n",v:"writer"} ] },
+        { s: "Strict rules maintain order.", w: [ {t:"adj",v:"Strict"}, {t:"n",v:"rules"}, {t:"v",v:"maintain"}, {t:"n",v:"order"} ] },
+        { s: "The bird flies high.", w: [ {t:"n",v:"bird"}, {t:"v",v:"flies"}, {t:"adv",v:"high"} ] },
+        { s: "Local businesses need support.", w: [ {t:"adj",v:"Local"}, {t:"n",v:"businesses"}, {t:"v",v:"need"}, {t:"n",v:"support"} ] }
+    ];
+
+    // 游戏控制器
+    const game = {
+        totalQuestions: 20,
+        scorePerQ: 5,
+        
+        questionPool: [], // 存储打乱后的题目索引
+        currentQIndex: 0, // 当前是第几题 (1-20)
+        currentScore: 0,
+        
+        currentData: null,
+        targetWord: null,
+        isProcessing: false,
+        
+        // 初始化
+        init: function() {
+            this.currentQIndex = 0;
+            this.currentScore = 0;
+            this.isProcessing = false;
+            
+            // 生成打乱的题目索引 (Fisher-Yates Shuffle)
+            this.questionPool = Array.from(Array(sentenceLibrary.length).keys());
+            for (let i = this.questionPool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [this.questionPool[i], this.questionPool[j]] = [this.questionPool[j], this.questionPool[i]];
+            }
+            
+            this.showScreen('startScreen');
+        },
+
+        // 开始
+        start: function() {
+            this.showScreen('gameScreen');
+            this.nextQuestion();
+        },
+
+        // 下一题
+        nextQuestion: function() {
+            if (this.currentQIndex >= this.totalQuestions) {
+                this.endGame();
+                return;
+            }
+
+            // 从池子中取出一个不重复的索引
+            const dataIndex = this.questionPool[this.currentQIndex];
+            this.currentQIndex++; // 题目计数 +1
+            
+            this.updateStats();
+            this.resetUI();
+
+            this.currentData = sentenceLibrary[dataIndex];
+            
+            // 随机挖空 (从该句子的 words 列表中选一个)
+            const wIndex = Math.floor(Math.random() * this.currentData.w.length);
+            this.targetWord = this.currentData.w[wIndex];
+
+            this.render();
+        },
+
+        resetUI: function() {
+            this.isProcessing = false;
+            document.getElementById('optContainer').classList.remove('disabled');
+            document.getElementById('feedbackMsg').innerText = "";
+            document.querySelectorAll('.opt-btn').forEach(b => b.className = 'opt-btn');
+            
+            const hintBtn = document.getElementById('hintBtn');
+            hintBtn.innerText = "💡 显示句子结构提示";
+            hintBtn.style.color = "var(--hint-text)";
+            document.getElementById('sentenceDisplay').classList.remove('show-hints');
+        },
+
+        // 渲染句子
+        render: function() {
+            const box = document.getElementById('sentenceDisplay');
+            box.innerHTML = '';
+            
+            // 分词正则: 单词 OR 标点 OR 空格
+            const parts = this.currentData.s.match(/(\w+)|([^\w\s]+)|(\s+)/g);
+            
+            parts.forEach(part => {
+                if (!part) return; // 安全检查
+
+                // 1. 处理空格 (保持原样，不用包span，但为了inline-flex间距，这里稍微特殊处理)
+                // 在flex gap布局下，空格会被折叠，所以我们主要靠 gap 来控制间距。
+                // 但如果原文有空格，正则会切出来。我们这里如果切出来的是纯空格，可以选择忽略(完全靠gap)，
+                // 或者渲染为 textNode。为了排版紧凑，我们**忽略纯空格**，改用 CSS 的 gap 控制间距。
+                if (/^\s+$/.test(part)) {
+                    return; 
+                }
+                
+                // 2. 处理标点 (跟随前一个词，或者作为独立单元，为了简单作为独立单元但gap很小)
+                // 我们通过正则判断是否是纯标点
+                if (/^[^\w]+$/.test(part)) {
+                    const s = document.createElement('span');
+                    s.innerText = part;
+                    s.style.marginRight = "5px"; // 标点后加一点点空隙
+                    box.appendChild(s);
+                    return;
+                }
+
+                // 3. 处理单词
+                const unit = document.createElement('div');
+                unit.className = 'word-unit';
+
+                // 判断是否是挖空词
+                if (part === this.targetWord.v) {
+                    const blank = document.createElement('div');
+                    blank.className = 'blank';
+                    blank.id = 'targetBlank';
+                    unit.appendChild(blank);
+                } else {
+                    const txt = document.createElement('span');
+                    txt.className = 'word-text';
+                    txt.innerText = part;
+                    unit.appendChild(txt);
+                    
+                    // 查找该词是否有词性提示
+                    const info = this.currentData.w.find(w => w.v === part);
+                    const hint = document.createElement('span');
+                    hint.className = 'pos-hint';
+                    hint.innerText = info ? info.t + "." : ""; 
+                    unit.appendChild(hint);
+                }
+                box.appendChild(unit);
+            });
+        },
+
+        check: function(userType) {
+            if (this.isProcessing) return;
+            this.isProcessing = true;
+            document.getElementById('optContainer').classList.add('disabled');
+
+            const isCorrect = (userType === this.targetWord.t);
+            const feedback = document.getElementById('feedbackMsg');
+            
+            const typeMap = {'n':0, 'v':1, 'adj':2, 'adv':3};
+            const labelMap = {'n':'名词', 'v':'动词', 'adj':'形容词', 'adv':'副词'};
+            const btns = document.querySelectorAll('.opt-btn');
+            
+            // 揭晓填空
+            const blank = document.getElementById('targetBlank');
+            blank.className = 'revealed';
+            blank.innerText = this.targetWord.v;
+            blank.style.color = isCorrect ? 'var(--green)' : 'var(--red)';
+            blank.style.borderBottomColor = isCorrect ? 'var(--green)' : 'var(--red)';
+
+            if (isCorrect) {
+                this.currentScore += this.scorePerQ;
+                feedback.innerHTML = "<span style='color:var(--green)'>✅ Correct!</span>";
+                btns[typeMap[userType]].classList.add('correct');
+                
+                setTimeout(() => this.nextQuestion(), 1000);
+            } else {
+                feedback.innerHTML = `<span style='color:var(--red)'>❌ 错误。是 ${labelMap[this.targetWord.t]} (${this.targetWord.v})</span>`;
+                btns[typeMap[userType]].classList.add('wrong');
+                setTimeout(() => btns[typeMap[this.targetWord.t]].classList.add('correct'), 200);
+                
+                setTimeout(() => this.nextQuestion(), 2200);
+            }
+            this.updateStats();
+        },
+
+        toggleHints: function() {
+            const box = document.getElementById('sentenceDisplay');
+            const btn = document.getElementById('hintBtn');
+            
+            if (box.classList.contains('show-hints')) {
+                box.classList.remove('show-hints');
+                btn.innerText = "💡 显示句子结构提示";
+                btn.style.color = "var(--hint-text)";
+            } else {
+                box.classList.add('show-hints');
+                btn.innerText = "🙈 隐藏结构提示";
+                btn.style.color = "var(--accent)";
+            }
+        },
+
+        updateStats: function() {
+            document.getElementById('qCount').innerText = this.currentQIndex;
+            document.getElementById('currentScore').innerText = this.currentScore;
+        },
+
+        endGame: function() {
+            document.getElementById('finalScoreDisplay').innerText = this.currentScore;
+            
+            let comment = "";
+            if (this.currentScore === 100) comment = "完美全对！语法大师！🏆";
+            else if (this.currentScore >= 80) comment = "优秀！基础非常扎实。✨";
+            else if (this.currentScore >= 60) comment = "及格了，继续加油！📚";
+            else comment = "再试一次，熟能生巧！💪";
+            
+            document.getElementById('resultComment').innerText = comment;
+            this.showScreen('endScreen');
+        },
+
+        showScreen: function(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+    };
+
+    game.init();
+
+</script>
+
+</body>
+</html>
